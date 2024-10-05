@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compensation Calculator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #f6f6f6;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            min-height: 90vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        .card {
+            background-color: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 56rem;
+            overflow: hidden;
+        }
+        .card-header {
+            background-color: #202020;
+            padding: 1.5rem;
+        }
+        .card-title {
+            font-size: 1.875rem;
+            color: #ffc433;
+            font-weight: normal;
+            margin: 0;
+        }
+        .card-subtitle {
+            color: #f6f6f6;
+            margin-top: 0.5rem;
+        }
+        .card-content {
+            padding: 1.5rem;
+        }
+        .input-group {
+            margin-bottom: 1rem;
+        }
+        .label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 200;
+            margin-bottom: 0.5rem;
+        }
+        .input {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.25rem;
+            font-size: 1rem;
+        }
+        select.input {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 0.5rem center;
+            background-repeat: no-repeat;
+            background-size: 1.5em 1.5em;
+            padding-right: 2.5rem;
+        }
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 8px;
+            border-radius: 5px;
+            background: #d3d3d3;
+            outline: none;
+            opacity: 0.7;
+            transition: opacity .2s;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #ffc433;
+            cursor: pointer;
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #ffc433;
+            cursor: pointer;
+        }
+        .results {
+            background-color: #202020;
+            color: white;
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            margin-top: 1.5rem;
+            position: relative;
+        }
+        .result-item {
+            margin-bottom: 1rem;
+        }
+        .result-label {
+            font-size: 1.3rem;
+            color: #ffc433;
+            font-weight: normal;
+        }
+        .result-value {
+            font-size: 1.7rem;
+            font-weight: bold;
+        }
+        .btn {
+            background-color: #ffc433;
+            color: #202020;
+            padding: 0.75rem 1.5rem;
+            font-size: 1.125rem;
+            font-weight: 200;
+            border: none;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .btn:hover {
+            background-color: #e6b02e;
+        }
+        .link {
+            color: #ffb400;
+            text-decoration: none;
+        }
+        .link:hover {
+            text-decoration: underline;
+        }
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+            padding-top: 2.5rem;
+        }
+        .chart-container {
+            height: 300px;
+        }
+        .results-info {
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+        }
+        @media (min-width: 768px) {
+            .grid {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useCallback } = React;
+
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        const roles = ['Software Engineer', 'Product Manager', 'Designer', 'Marketing'];
+        const locations = ['San Francisco', 'New York', 'London', 'Remote'];
+        const levels = [1, 2, 3, 4, 5];
+        const steps = [1, 2, 3, 4, 5];
+
+        const baseCompensation = {
+            'Software Engineer': 100000,
+            'Product Manager': 110000,
+            'Designer': 90000,
+            'Marketing': 85000
+        };
+
+        const locationMultiplier = {
+            'San Francisco': 1,
+            'New York': 0.95,
+            'London': 0.9,
+            'Remote': 0.85
+        };
+
+        const levelMultiplier = 1.15;
+        const stepMultiplier = 1.03;
+
+        function CompensationCalculator() {
+            const [role, setRole] = useState(roles[0]);
+            const [location, setLocation] = useState(locations[0]);
+            const [level, setLevel] = useState(1);
+            const [step, setStep] = useState(1);
+            const [compensation, setCompensation] = useState(0);
+
+            const chartRef = useRef(null);
+            const chartInstance = useRef(null);
+
+            const calculateCompensation = useCallback(() => {
+                const base = baseCompensation[role];
+                const locationFactor = locationMultiplier[location];
+                const levelFactor = Math.pow(levelMultiplier, level - 1);
+                const stepFactor = Math.pow(stepMultiplier, step - 1);
+                
+                const total = base * locationFactor * levelFactor * stepFactor;
+                setCompensation(Math.round(total));
+
+                if (chartInstance.current) {
+                    chartInstance.current.data.datasets[0].data = [
+                        base,
+                        base * locationFactor - base,
+                        base * locationFactor * levelFactor - base * locationFactor,
+                        total - base * locationFactor * levelFactor
+                    ];
+                    chartInstance.current.update();
+                }
+            }, [role, location, level, step]);
+
+            const debouncedCalculateCompensation = useCallback(debounce(calculateCompensation, 500), [calculateCompensation]);
+
+            useEffect(() => {
+                debouncedCalculateCompensation();
+            }, [role, location, level, step, debouncedCalculateCompensation]);
+
+            useEffect(() => {
+                if (chartInstance.current) {
+                    chartInstance.current.destroy();
+                }
+
+                const ctx = chartRef.current.getContext('2d');
+                chartInstance.current = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Base', 'Location', 'Level', 'Step'],
+                        datasets: [{
+                            data: [100000, 0, 0, 0],
+                            backgroundColor: ['#ffc433', '#ff6b6b', '#4ecdc4', '#45b7d1'],
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        if (context.parsed !== null) {
+                                            label += new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(context.parsed);
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+
+                return () => {
+                    if (chartInstance.current) {
+                        chartInstance.current.destroy();
+                    }
+                };
+            }, []);
+
+            const formatCurrency = (value) => {
+                return new Intl.NumberFormat('en-US', {
+                    style: 'currency',
+                    currency: 'USD',
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0,
+                }).format(value);
+            };
+
+            const handleInputChange = (setter) => (e) => {
+                setter(e.target.value);
+            };
+
+            return (
+                <div className="container">
+                    <div className="card">
+                        <div className="card-header">
+                            <h1 className="card-title">Compensation Calculator</h1>
+                            <p className="card-subtitle">Estimate your compensation based on role, location, level, and step</p>
+                        </div>
+                        <div className="card-content">
+                            <div className="grid">
+                                <div className="input-group">
+                                    <label htmlFor="role" className="label">Role</label>
+                                    <select
+                                        id="role"
+                                        value={role}
+                                        onChange={handleInputChange(setRole)}
+                                        className="input"
+                                    >
+                                        {roles.map((r) => (
+                                            <option key={r} value={r}>{r}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="input-group">
+                                    <label htmlFor="location" className="label">Location</label>
+                                    <select
+                                        id="location"
+                                        value={location}
+                                        onChange={handleInputChange(setLocation)}
+                                        className="input"
+                                    >
+                                        {locations.map((l) => (
+                                            <option key={l} value={l}>{l}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="input-group">
+                                    <label htmlFor="level" className="label">Level: {level}</label>
+                                    <input
+                                        type="range"
+                                        id="level"
+                                        min="1"
+                                        max="5"
+                                        value={level}
+                                        onChange={handleInputChange(setLevel)}
+                                        className="input"
+                                    />
+                                </div>
+                                <div className="input-group">
+                                    <label htmlFor="step" className="label">Step: {step}</label>
+                                    <input
+                                        type="range"
+                                        id="step"
+                                        min="1"
+                                        max="5"
+                                        value={step}
+                                        onChange={handleInputChange(setStep)}
+                                        className="input"
+                                    />
+                                </div>
+                            </div>
+                            <div className="results">
+                                <div className="results-grid">
+                                    <div className="chart-container">
+                                        <canvas ref={chartRef}></canvas>
+                                    </div>
+                                    <div className="results-info">
+                                        <div className="result-item">
+                                            <p className="result-label">Estimated Compensation</p>
+                                            <p className="result-value">{formatCurrency(compensation)}</p>
+                                        </div>
+                                        <button
+                                            className="btn"
+                                            onClick={() => window.location.href = 'https://posthog.com/handbook/people/compensation'}
+                                        >
+                                            Learn More
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<CompensationCalculator />, document.getElementById('root'));
+    </script>
+</body>
+</html>
